@@ -24,7 +24,7 @@ class MainActivity : Activity() {
 
         setContentView(R.layout.activity_main)
 
-        resultText = findViewById(R.id.voiceButton)
+        resultText = findViewById(R.id.resultText)
 
         val button: Button = findViewById(R.id.voiceButton)
 
