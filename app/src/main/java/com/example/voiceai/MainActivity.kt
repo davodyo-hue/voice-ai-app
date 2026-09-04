@@ -5,11 +5,11 @@ import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.widget.Button
-import android.widget.LinearLayout
 import android.widget.TextView
 import java.util.Locale
 
@@ -22,22 +22,11 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        resultText = TextView(this)
-        resultText.text = "Voice AI\n\nPress the button and speak."
-        resultText.textSize = 20f
-        resultText.setPadding(30, 50, 30, 30)
+        setContentView(R.layout.activity_main)
 
-        val button = Button(this)
-        button.text = "🎤 Speak"
+        resultText = findViewById(R.id.voiceButton)
 
-        val layout = LinearLayout(this)
-        layout.orientation = LinearLayout.VERTICAL
-        layout.setPadding(30, 30, 30, 30)
-
-        layout.addView(resultText)
-        layout.addView(button)
-
-        setContentView(layout)
+        val button: Button = findViewById(R.id.voiceButton)
 
         textToSpeech = TextToSpeech(this) {
             textToSpeech.language = Locale.US
@@ -60,28 +49,51 @@ class MainActivity : Activity() {
     }
 
     private fun startListening() {
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+
         intent.putExtra(
             RecognizerIntent.EXTRA_LANGUAGE_MODEL,
             RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
         )
+
         intent.putExtra(
             RecognizerIntent.EXTRA_LANGUAGE,
             Locale.US
         )
 
         speechRecognizer.setRecognitionListener(
-            object : android.speech.RecognitionListener {
+            object : RecognitionListener {
+
+                override fun onReadyForSpeech(params: Bundle?) {
+                    // آماده شنیدن
+                }
+
+                override fun onBeginningOfSpeech() {
+                }
+
+                override fun onRmsChanged(rmsdB: Float) {
+                }
+
+                override fun onBufferReceived(buffer: ByteArray?) {
+                }
+
+                override fun onEndOfSpeech() {
+                }
+
+                override fun onError(error: Int) {
+                }
 
                 override fun onResults(results: Bundle?) {
-                    val matches =
-                        results?.getStringArrayList(
-                            SpeechRecognizer.RESULTS_RECOGNITION
-                        )
+
+                    val matches = results?.getStringArrayList(
+                        SpeechRecognizer.RESULTS_RECOGNITION
+                    )
 
                     if (!matches.isNullOrEmpty()) {
+
                         val spokenText = matches[0]
-                        resultText.text = spokenText
+
                         textToSpeech.speak(
                             spokenText,
                             TextToSpeech.QUEUE_FLUSH,
@@ -91,20 +103,16 @@ class MainActivity : Activity() {
                     }
                 }
 
-                override fun onReadyForSpeech(params: Bundle?) {
-                    resultText.text = "Listening..."
+                override fun onPartialResults(
+                    partialResults: Bundle?
+                ) {
                 }
 
-                override fun onError(error: Int) {
-                    resultText.text = "Could not understand. Try again."
+                override fun onEvent(
+                    eventType: Int,
+                    params: Bundle?
+                ) {
                 }
-
-                override fun onBeginningOfSpeech() {}
-                override fun onRmsChanged(rmsdB: Float) {}
-                override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {}
-                override fun onPartialResults(partialResults: Bundle?) {}
-                override fun onEvent(eventType: Int, params: Bundle?) {}
             }
         )
 
