@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -7,16 +6,17 @@
     android:padding="24dp">
 
     <TextView
-    android:id="@+id/resultText"
-    android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:text="Voice AI"
-    android:textSize="30sp"
-    android:layout_marginBottom="30dp" />
+        android:id="@+id/resultText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Voice AI"
+        android:textSize="30sp"
+        android:layout_marginBottom="30dp" />
+
     <Button
         android:id="@+id/voiceButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="🎤 Talk to AI" />
+        android:text="Talk to AI" />
 
 </LinearLayout>
