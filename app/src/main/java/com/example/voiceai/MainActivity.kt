@@ -19,6 +19,8 @@ class MainActivity : Activity() {
     private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var textToSpeech: TextToSpeech
 
+    private var ttsReady = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -28,48 +30,44 @@ class MainActivity : Activity() {
 
         val button: Button = findViewById(R.id.voiceButton)
 
-        textToSpeech = TextToSpeech(this) {
-            textToSpeech.language = Locale.US
+        // Text To Speech
+        textToSpeech = TextToSpeech(this) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+
+                val result = textToSpeech.setLanguage(Locale.US)
+
+                ttsReady =
+                    result != TextToSpeech.LANG_MISSING_DATA &&
+                    result != TextToSpeech.LANG_NOT_SUPPORTED
+            }
         }
 
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        // بررسی وجود سرویس تشخیص صدا
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
 
-        button.setOnClickListener {
-            startListening()
+            resultText.text =
+                "Speech recognition is not available on this phone."
+
+            button.isEnabled = false
+
+            return
         }
 
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(
-                arrayOf(Manifest.permission.RECORD_AUDIO),
-                100
-            )
-        }
-    }
-
-    private fun startListening() {
-
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-
-        intent.putExtra(
-            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-        )
-
-        intent.putExtra(
-            RecognizerIntent.EXTRA_LANGUAGE,
-            Locale.US
-        )
+        // ساخت Speech Recognizer
+        speechRecognizer =
+            SpeechRecognizer.createSpeechRecognizer(this)
 
         speechRecognizer.setRecognitionListener(
             object : RecognitionListener {
 
                 override fun onReadyForSpeech(params: Bundle?) {
-                    // آماده شنیدن
+
+                    resultText.text = "Listening..."
                 }
 
                 override fun onBeginningOfSpeech() {
+
+                    resultText.text = "I'm listening..."
                 }
 
                 override fun onRmsChanged(rmsdB: Float) {
@@ -79,20 +77,39 @@ class MainActivity : Activity() {
                 }
 
                 override fun onEndOfSpeech() {
+
+                    resultText.text = "Processing..."
                 }
 
                 override fun onError(error: Int) {
+
+                    resultText.text =
+                        "Speech error: ${getErrorMessage(error)}"
                 }
 
                 override fun onResults(results: Bundle?) {
 
-                    val matches = results?.getStringArrayList(
-                        SpeechRecognizer.RESULTS_RECOGNITION
-                    )
+                    val matches =
+                        results?.getStringArrayList(
+                            SpeechRecognizer.RESULTS_RECOGNITION
+                        )
 
-                    if (!matches.isNullOrEmpty()) {
+                    val spokenText =
+                        matches?.firstOrNull()
 
-                        val spokenText = matches[0]
+                    if (spokenText.isNullOrBlank()) {
+
+                        resultText.text =
+                            "I didn't hear anything."
+
+                        return
+                    }
+
+                    // نمایش متن تشخیص داده شده
+                    resultText.text = spokenText
+
+                    // پاسخ صوتی
+                    if (ttsReady) {
 
                         textToSpeech.speak(
                             spokenText,
@@ -116,12 +133,150 @@ class MainActivity : Activity() {
             }
         )
 
+        // دکمه Talk to AI
+        button.setOnClickListener {
+
+            if (
+                checkSelfPermission(
+                    Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+
+                requestPermissions(
+                    arrayOf(
+                        Manifest.permission.RECORD_AUDIO
+                    ),
+                    100
+                )
+
+            } else {
+
+                startListening()
+            }
+        }
+
+        // درخواست اجازه میکروفون
+        if (
+            checkSelfPermission(
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            requestPermissions(
+                arrayOf(
+                    Manifest.permission.RECORD_AUDIO
+                ),
+                100
+            )
+        }
+    }
+
+    private fun startListening() {
+
+        val intent =
+            Intent(
+                RecognizerIntent.ACTION_RECOGNIZE_SPEECH
+            )
+
+        intent.putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+        )
+
+        intent.putExtra(
+            RecognizerIntent.EXTRA_LANGUAGE,
+            Locale.US.toLanguageTag()
+        )
+
+        intent.putExtra(
+            RecognizerIntent.EXTRA_PARTIAL_RESULTS,
+            true
+        )
+
+        resultText.text = "Starting..."
+
         speechRecognizer.startListening(intent)
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+
+        super.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
+        )
+
+        if (requestCode == 100) {
+
+            if (
+                grantResults.isNotEmpty() &&
+                grantResults[0] ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+
+                resultText.text =
+                    "Microphone permission granted. Tap Talk to AI."
+
+            } else {
+
+                resultText.text =
+                    "Microphone permission was denied."
+            }
+        }
+    }
+
+    private fun getErrorMessage(error: Int): String {
+
+        return when (error) {
+
+            SpeechRecognizer.ERROR_AUDIO ->
+                "audio recording problem"
+
+            SpeechRecognizer.ERROR_CLIENT ->
+                "client problem"
+
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
+                "microphone permission denied"
+
+            SpeechRecognizer.ERROR_NETWORK ->
+                "network problem"
+
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT ->
+                "network timeout"
+
+            SpeechRecognizer.ERROR_NO_MATCH ->
+                "no speech recognized"
+
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY ->
+                "recognizer is busy"
+
+            SpeechRecognizer.ERROR_SERVER ->
+                "speech service server problem"
+
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
+                "no speech detected"
+
+            else ->
+                "unknown error (code $error)"
+        }
+    }
+
     override fun onDestroy() {
-        speechRecognizer.destroy()
-        textToSpeech.shutdown()
+
+        if (::speechRecognizer.isInitialized) {
+
+            speechRecognizer.destroy()
+        }
+
+        if (::textToSpeech.isInitialized) {
+
+            textToSpeech.shutdown()
+        }
+
         super.onDestroy()
     }
 }
