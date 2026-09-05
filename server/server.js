@@ -1,18 +1,11 @@
 const express = require("express");
-const OpenAI = require("openai");
 
 const app = express();
 
 app.use(express.json());
 
-const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
-});
-
 app.post("/ask", async (req, res) => {
-
     try {
-
         const message = req.body.message;
 
         if (!message) {
@@ -21,20 +14,60 @@ app.post("/ask", async (req, res) => {
             });
         }
 
-        const response = await client.responses.create({
-            model: "gpt-5",
-            input: message
-        });
+        const response = await fetch(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+            process.env.GEMINI_API_KEY,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    text: message
+                                }
+                            ]
+                        }
+                    ]
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error(data);
+
+            return res.status(500).json({
+                error: "Gemini API error"
+            });
+        }
+
+        const reply =
+            data.candidates?.[0]?.content?.parts?.[0]?.text ||
+            "I couldn't generate a response.";
 
         res.json({
-            reply: response.output_text
+            reply: reply
         });
 
     } catch (error) {
-
         console.error(error);
 
         res.status(500).json({
+            error: "Server error"
+        });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});        res.status(500).json({
             error: "AI request failed"
         });
     }
